@@ -362,20 +362,21 @@ export function ArchsealApp() {
   /* -------------------------------------------------------------- render */
 
   return (
-    <div className="blueprint-grid min-h-screen">
-      <div className="repo-map">
+    <div className="archseal-surface min-h-screen">
+      <div className="arch-contours" aria-hidden="true">
+        <span />
+        <span />
+      </div>
+      <div>
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded border border-primary/50 text-primary">
-              <Stamp className="h-4 w-4" />
-            </div>
-            <div className="leading-none">
-              <div className="font-mono text-sm tracking-[0.34em] text-foreground">
-                ARCHSEAL
-              </div>
-              <div className="label-xs mt-1">GenLayer Bradbury</div>
-            </div>
+            <img
+              src={archsealLogo.url}
+              alt="ARCHSEAL"
+              className="h-7 w-auto sm:h-9"
+            />
+            <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
           </div>
           <div className="flex items-center gap-3">
             {address ? (
