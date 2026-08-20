@@ -160,8 +160,8 @@ export function ReviewDetail({
               <TxLink href={evaluationTxUrl}>Evaluation transaction</TxLink>
             ) : null}
             <div>
-              <TxLink href={`${EXPLORER_URL}/contracts/${""}`.replace(/\/$/, "")}>
-                Bradbury Explorer
+              <TxLink href={addressLink(CONTRACT_ADDRESS)}>
+                Bradbury Explorer — contract
               </TxLink>
             </div>
           </div>
