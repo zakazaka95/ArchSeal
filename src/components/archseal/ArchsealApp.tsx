@@ -345,8 +345,12 @@ export function ArchsealApp() {
   const statEntries = useMemo(() => {
     if (!stats) return [];
     return Object.entries(stats)
-      .filter(([, v]) => ["string", "number", "boolean"].includes(typeof v))
-      .slice(0, 4);
+      .filter(
+        ([k, v]) =>
+          !/wei|balance/i.test(k) &&
+          ["string", "number", "boolean"].includes(typeof v),
+      )
+      .slice(0, 3);
   }, [stats]);
 
   /* -------------------------------------------------------------- render */
