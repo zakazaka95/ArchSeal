@@ -1,5 +1,5 @@
 import type { Review } from "@/lib/genlayer";
-import { EXPLORER_URL } from "@/lib/genlayer";
+import { addressLink, CONTRACT_ADDRESS } from "@/lib/genlayer";
 import { formatGen, shortAddress, shortHash } from "@/lib/wallet";
 import { CopyValue, Field, Label, StatusChip, TxLink } from "./primitives";
 import { VerdictSeal } from "./VerdictSeal";
