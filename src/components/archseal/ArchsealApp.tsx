@@ -300,8 +300,7 @@ export function ArchsealApp() {
   };
 
   const currentStatus = (review?.status ?? "").toUpperCase();
-  const canEvaluate =
-    !!review && !SEALED.includes(currentStatus) && phase !== "evaluating";
+  const canEvaluate = !!review && !SEALED.includes(currentStatus) && !busy;
   const inconclusive = currentStatus === "INCONCLUSIVE";
 
   /* --------------------------------------------------------- public data */
@@ -595,7 +594,7 @@ export function ArchsealApp() {
                 {review ? (
                   <ReviewDetail
                     review={review}
-                    evaluationTxUrl={evalTx ? txLink(evalTx) : undefined}
+                    {...(evalTx ? { evaluationTxUrl: txLink(evalTx) } : {})}
                     actions={
                       <div className="space-y-2">
                         {canEvaluate ? (

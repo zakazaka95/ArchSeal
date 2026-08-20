@@ -16,7 +16,7 @@ export async function requestAccounts(): Promise<string> {
   if (!eth) throw new Error("NO_WALLET");
   const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
   if (!accounts?.length) throw new Error("No wallet account was authorized.");
-  return accounts[0];
+  return accounts[0]!;
 }
 
 export async function getChainId(): Promise<string | null> {

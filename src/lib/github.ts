@@ -11,9 +11,9 @@ export function parsePrUrl(input: string): ParsedPr | null {
     /^(?:https?:\/\/)?(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)(?:[/?#].*)?$/i,
   );
   if (!m) return null;
-  const num = Number(m[3]);
+  const num = Number(m[3]!);
   if (!Number.isFinite(num) || num <= 0) return null;
-  return { owner: m[1], repo: m[2], number: num };
+  return { owner: m[1]!, repo: m[2]!, number: num };
 }
 
 export type PreflightResult =

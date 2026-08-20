@@ -54,7 +54,7 @@ async function getReadClient() {
     readClientPromise = (async () => {
       const { createClient } = await import("genlayer-js");
       const { testnetBradbury } = await import("genlayer-js/chains");
-      return createClient({ chain: testnetBradbury });
+      return createClient({ chain: testnetBradbury as any });
     })();
   }
   return readClientPromise;
@@ -66,7 +66,7 @@ export async function getWriteClient(address: string) {
   const ethereum = (globalThis as any).window?.ethereum;
   if (!ethereum) throw new Error("NO_WALLET");
   const client = createClient({
-    chain: testnetBradbury,
+    chain: testnetBradbury as any,
     account: address as `0x${string}`,
     provider: ethereum,
   });
