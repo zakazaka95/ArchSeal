@@ -8,7 +8,31 @@ export type Eip1193 = {
 
 export function getEthereum(): Eip1193 | null {
   if (typeof window === "undefined") return null;
-  return ((window as any).ethereum as Eip1193) ?? null;
+  const injected = (window as any).ethereum;
+  if (!injected) return null;
+  return (
+    (injected.providers?.find((p: any) => p?.isMetaMask) as Eip1193) ??
+    (injected as Eip1193)
+  );
+}
+
+export function getWalletProvider(): Eip1193 {
+  const provider = getEthereum();
+  if (!provider) throw new Error("NO_WALLET");
+  return provider;
+}
+
+/** Standard EIP-1193 connect + network guarantee. Never touches MetaMask Snaps. */
+export async function ensureBradburyNetwork(): Promise<{
+  provider: Eip1193;
+  address: `0x${string}`;
+}> {
+  const provider = getWalletProvider();
+  await provider.request({ method: "eth_requestAccounts" });
+  await switchToBradbury();
+  const accounts: string[] = await provider.request({ method: "eth_accounts" });
+  if (!accounts?.[0]) throw new Error("Wallet account is not connected.");
+  return { provider, address: accounts[0] as `0x${string}` };
 }
 
 export async function requestAccounts(): Promise<string> {
