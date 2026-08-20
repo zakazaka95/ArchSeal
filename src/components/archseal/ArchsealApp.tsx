@@ -181,6 +181,8 @@ export function ArchsealApp() {
       const pre = await preflightGithub(parsed, adrPath);
       if (!pre.ok) {
         setPhase("failed");
+        setStatusMsg("");
+        setNotice("");
         setError(pre.error);
         setBusy(false);
         return;
@@ -220,6 +222,8 @@ export function ArchsealApp() {
       resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (e) {
       setPhase("failed");
+      setStatusMsg("");
+      setNotice("");
       setError(describeWalletError(e));
     } finally {
       setBusy(false);
@@ -264,6 +268,8 @@ export function ArchsealApp() {
       setStatusMsg("");
     } catch (e) {
       setPhase("failed");
+      setStatusMsg("");
+      setNotice("");
       setError(describeWalletError(e));
     } finally {
       setBusy(false);
