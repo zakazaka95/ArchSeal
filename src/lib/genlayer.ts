@@ -60,18 +60,20 @@ async function getReadClient() {
   return readClientPromise;
 }
 
-export async function getWriteClient(address: string) {
+/**
+ * Builds a write client bound to the connected wallet using plain EIP-1193.
+ * No client.connect() — that path calls MetaMask Snap methods.
+ */
+export async function getWriteClient(_address?: string) {
   const { createClient } = await import("genlayer-js");
   const { testnetBradbury } = await import("genlayer-js/chains");
-  const ethereum = (globalThis as any).window?.ethereum;
-  if (!ethereum) throw new Error("NO_WALLET");
-  const client = createClient({
+  const { ensureBradburyNetwork } = await import("./wallet");
+  const { provider, address } = await ensureBradburyNetwork();
+  return createClient({
     chain: testnetBradbury as any,
-    account: address as `0x${string}`,
-    provider: ethereum,
-  });
-  await client.connect("testnetBradbury");
-  return client;
+    account: address,
+    provider: provider as any,
+  } as any);
 }
 
 /* ------------------------------------------------------------ normalize */
