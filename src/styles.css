@@ -135,22 +135,77 @@
   }
 }
 
-@utility blueprint-grid {
-  background-image:
-    linear-gradient(to right, oklch(0.94 0.012 85 / 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, oklch(0.94 0.012 85 / 0.045) 1px, transparent 1px);
-  background-size: 44px 44px;
+/* Obsidian stone surface: embossed monogram watermark + arch contours + grain */
+@utility archseal-surface {
+  position: relative;
+  isolation: isolate;
+  background-color: #0b0e0a;
+  overflow-x: clip;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background-image: url("/__l5e/assets-v1/e42bbfc6-2b41-4ffe-b186-2d27ed67a1b8/archseal-monogram.png");
+    background-repeat: no-repeat;
+    background-position: 118% 78%;
+    background-size: min(120vw, 1100px) auto;
+    opacity: 0.035;
+    filter: grayscale(1) contrast(1.1);
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(
+        ellipse 60% 40% at 50% 8%,
+        oklch(0.86 0.21 132 / 0.045),
+        transparent 70%
+      ),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat, repeat;
+    background-size: auto, 180px 180px;
+    opacity: 0.55;
+    mix-blend-mode: soft-light;
+  }
 }
 
-@utility repo-map {
-  background-image:
-    radial-gradient(
-      circle at 18% 12%,
-      oklch(0.86 0.21 132 / 0.07),
-      transparent 42%
-    ),
-    radial-gradient(circle at 82% 8%, oklch(0.81 0.15 78 / 0.05), transparent 45%),
-    linear-gradient(180deg, transparent 60%, oklch(0.16 0.008 120 / 0.9) 100%);
+/* Two engraved arch contours echoing the monogram geometry */
+@utility arch-contours {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+
+  & > span {
+    position: absolute;
+    display: block;
+    border: 1px solid oklch(0.94 0.012 85 / 0.05);
+    border-bottom: none;
+    border-radius: 50% 50% 0 0 / 62% 62% 0 0;
+  }
+
+  & > span:first-child {
+    right: -14%;
+    bottom: -22%;
+    width: min(78vw, 900px);
+    height: min(64vw, 720px);
+  }
+
+  & > span:last-child {
+    right: -4%;
+    bottom: -18%;
+    width: min(52vw, 600px);
+    height: min(44vw, 500px);
+    border-color: oklch(0.86 0.21 132 / 0.045);
+  }
 }
 
 @utility glass-panel {

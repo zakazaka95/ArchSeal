@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ArchsealApp } from "@/components/archseal/ArchsealApp";
 
-const title = "ARCHSEAL — Consensus-gated architecture compliance";
+const title = "ARCHSEAL — Consensus-Gated Software";
 const description =
   "ARCHSEAL pins a GitHub pull request's exact commits and a repository's ADRs on GenLayer Bradbury, then seals an AI-consensus compliance verdict on-chain.";
 
