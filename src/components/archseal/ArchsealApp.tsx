@@ -8,6 +8,7 @@ import {
   Stamp,
   Wallet,
 } from "lucide-react";
+import archsealLogo from "@/assets/archseal-logo.png.asset.json";
 import {
   CONTRACT_ADDRESS,
   addressLink,
