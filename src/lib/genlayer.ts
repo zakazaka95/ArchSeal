@@ -1,6 +1,8 @@
 // GenLayer Bradbury client helpers. All imports are dynamic so nothing
 // browser-only is evaluated during SSR.
 
+import { ensureBradburyNetwork } from "./wallet";
+
 export const CONTRACT_ADDRESS = "0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d" as `0x${string}`;
 export const CHAIN_ID = 4221;
 export const CHAIN_ID_HEX = "0x107D";
@@ -78,7 +80,6 @@ async function getReadClient() {
 export async function getWriteClient(_address?: string) {
   const { createClient } = await import("genlayer-js");
   const { testnetBradbury } = await import("genlayer-js/chains");
-  const { ensureBradburyNetwork } = await import("./wallet");
   const { provider, address } = await ensureBradburyNetwork();
   return createClient({
     chain: testnetBradbury as any,
