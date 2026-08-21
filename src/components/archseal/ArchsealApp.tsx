@@ -64,8 +64,8 @@ export function ArchsealApp() {
         /* ignore */
       }
     })();
-    const onAccounts = (accs: string[]) => setAddress(accs?.[0] ?? "");
-    const onChain = (id: string) => setChainId(id);
+    const onAccounts = (accs: unknown) => setAddress((accs as string[])?.[0] ?? "");
+    const onChain = (id: unknown) => setChainId(id as string);
     eth.on?.("accountsChanged", onAccounts);
     eth.on?.("chainChanged", onChain);
     return () => {
