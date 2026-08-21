@@ -1,0 +1,8 @@
+{
+  "schema": "archseal-policy-v1",
+  "policy_version": "1.0.0",
+  "repository": "zakazaka95/ArchSeal",
+  "adr_path": "docs/adr",
+  "maintainers": ["zakazaka95"],
+  "require_complete_evidence": true
+}

@@ -1,243 +1,124 @@
-# ARCHSEAL
+# ArchSeal
 
-**Consensus-gated architecture compliance for GitHub pull requests, powered by GenLayer.**
+ArchSeal is a GenLayer dApp that turns a public GitHub pull request into an auditable, on-chain architecture-compliance seal.
 
-Every codebase has laws.  
-Merge only what obeys them.
+It pins the pull request's exact base and head commits, reads repository-approved governance from the pinned base commit, gathers the declared Architectural Decision Records (ADRs) and changed code, and lets independent GenLayer AI validators decide whether the change is `COMPLIANT`, `VIOLATES_ADR`, or `INCONCLUSIVE`.
 
-- **Live app:** [archseal.xyz](https://archseal.xyz)
-- **Network:** GenLayer Bradbury Testnet
-- **Chain ID:** `4221` / `0x107D`
-- **Contract:** `0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b`
-- **Open in GenLayer Studio:** [Import contract](https://studio.genlayer.com/?import-contract=0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
+- Live app: [archseal.xyz](https://archseal.xyz)
+- Accepted V1 contract: [`0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b`](https://explorer-bradbury.genlayer.com/address/0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
+- Network: GenLayer Bradbury Testnet, chain `4221` (`0x107D`)
 
-## The problem
+## Why it exists
 
-Architectural Decision Records define how a software project should be built, but they are usually enforced manually.
+Architecture rules are usually checked manually. A pull request can change after a review, contributors can point a checker at a convenient subset of ADRs, and a green result can hide missing or truncated evidence.
 
-Reviewers must compare every pull request against multiple ADR documents. This process is slow, subjective, and difficult to audit. A pull request can also change while it is being reviewed, creating uncertainty about exactly which version received approval.
+ArchSeal makes the evidence and decision reproducible:
 
-ARCHSEAL turns architectural governance into a verifiable on-chain workflow.
+- the reviewed base and head commits are immutable;
+- ADR scope comes from maintainer-approved repository policy, never form input;
+- incomplete evidence can never produce a compliance seal;
+- the review identity is derived from the GenLayer transaction context rather than a predicted shared counter;
+- the final seal binds the review ID, policy, commits, and consensus verdict;
+- contract state is the only source of truth—there is no backend, database, browser LLM, or mocked verdict.
 
-## What ARCHSEAL does
+## V2 governance and completeness
 
-ARCHSEAL:
+V2 directly addresses the review feedback received after the original project was accepted.
 
-1. Reads a public GitHub pull request.
-2. Resolves and records its exact base and head commit hashes.
-3. Reads the repository’s Architectural Decision Records.
-4. Uses independent GenLayer AI validators to evaluate the change.
-5. Reaches consensus on whether the pull request follows the documented architecture.
-6. Stores the verdict and supporting evidence on-chain.
+### Maintainer-approved ADR scope
 
-The contract records the exact commits being reviewed, preventing a verdict from being reused for a later or modified version of the pull request.
+Every protected repository commits `.archseal/policy.json` on its base branch:
 
-## Why GenLayer is essential
+```json
+{
+  "schema": "archseal-policy-v1",
+  "policy_version": "1.0.0",
+  "repository": "zakazaka95/ArchSeal",
+  "adr_path": "docs/adr",
+  "maintainers": ["zakazaka95"],
+  "require_complete_evidence": true
+}
+```
 
-This workflow cannot be implemented reliably with a traditional deterministic smart contract because it requires:
+The contract reads this policy from the pull request's pinned base commit. A pull request cannot change its own review scope, weaken completeness requirements, or select a different ADR directory through the UI.
 
-- Reading live GitHub repository data.
-- Understanding source-code changes.
-- Interpreting natural-language architecture documents.
-- Comparing implementation details with architectural constraints.
-- Producing a reasoned verdict through independent validator consensus.
+### Fail-closed evidence handling
 
-The frontend does not generate or modify the verdict. GenLayer contract state is the source of truth.
+The contract records exact incompleteness reasons and deterministically returns `INCONCLUSIVE` before invoking the LLM when:
 
-## Verdict output
+- the ADR directory is missing, empty, or exceeds its cap;
+- an ADR document is unavailable or truncated;
+- the changed-file list is missing or exceeds its cap;
+- a changed file has no reviewable patch;
+- an individual patch or the total diff exceeds the declared limits.
 
-A completed review can include:
+The result exposes `evidence_complete` and `incomplete_reasons` on-chain.
 
-- `COMPLIANT`
-- `NON_COMPLIANT`
-- `INCONCLUSIVE`
-- Compliance score
-- Risk level
-- Human-readable explanation
-- Violated ADR references
-- Exact base commit
-- Exact head commit
-- Repository and pull-request information
-- Number of evaluation attempts
-- Sponsor and contributor wallets
-- Reward and payout status
+### Transaction-context review IDs
 
-## Review lifecycle
+GenVM does not expose an outer transaction hash to contract code. V2 therefore derives a 64-character SHA-256 review ID from the available transaction context (chain, contract, origin, sender, deterministic transaction timestamp) plus the repository, PR, commits, and policy hash. `total_reviews` remains a statistic only and is never used to predict or allocate an ID.
 
-### 1. Lock evidence
+## Contract flow
 
-The user submits:
+1. `open_review(repo_owner, repo_name, pull_request, contributor_wallet)`
+   - fetches the public GitHub PR;
+   - pins base/head commit hashes;
+   - reads and validates `.archseal/policy.json` from the base commit;
+   - stores an `OPEN` review under its transaction-derived string ID.
+2. `evaluate_review(review_id)`
+   - reloads the pinned policy and evidence;
+   - forces `INCONCLUSIVE` if any required evidence is incomplete;
+   - otherwise asks independent validators to evaluate the change;
+   - stores the verdict and final `seal_hash`.
+3. `refund_review(review_id)` refunds an eligible inconclusive reward.
 
-- GitHub pull-request URL
-- ADR directory path
-- Optional GEN reward
-- Contributor wallet
-
-The `open_review` transaction resolves and stores the exact pull-request commits and review parameters.
-
-### 2. Run AI consensus
-
-The `evaluate_review` transaction asks GenLayer validators to independently inspect the pull request and ADR evidence.
-
-Validators reach consensus on a canonical compliance verdict.
-
-### 3. Seal the result
-
-The final verdict, explanation, risk level, score, commit hashes, and evidence are permanently available through the contract.
-
-## Intelligent Contract
-
-The complete contract source is available at:
+Read methods:
 
 ```text
-contracts/ArchSeal.py
-```
-
-### Write methods
-
-```python
-open_review(
-    repo_owner: str,
-    repo_name: str,
-    pull_request: u256,
-    adr_path: str,
-    contributor_wallet: str
-)
-```
-
-Creates a review and locks its GitHub evidence.
-
-```python
-evaluate_review(review_id: u256)
-```
-
-Runs the GenLayer AI-consensus architecture evaluation.
-
-```python
-refund_review(review_id: u256)
-```
-
-Refunds an eligible review reward when the review cannot be completed.
-
-### Read methods
-
-```python
-get_review(review_id: u256)
+get_review(review_id: string)
+get_latest_review(sponsor: address)
 get_recent_reviews(limit: u256)
 get_stats()
 ```
 
-## Verified on-chain example
+The V2 source is [`contracts/ArchSealV2.py`](contracts/ArchSealV2.py). The accepted V1 deployment remains linked above as public on-chain evidence.
 
-ARCHSEAL evaluated:
-
-[MITLibraries/timdex pull request #978](https://github.com/MITLibraries/timdex/pull/978)
-
-Result: `COMPLIANT`
-
-The contract locked these commits:
+## Repository layout
 
 ```text
-Base: e64bf84681700da4a9b66f37db1098d31e653697
-Head: 229f9bf0b0c458c7436c5050e064cf7bbaa77f98
+.archseal/policy.json          Repository-owned ArchSeal policy
+contracts/ArchSealV2.py       GenLayer Intelligent Contract
+docs/adr/                     Architectural Decision Records
+docs/STUDIO_TEST_V2.md        Studio deployment and verification script
+src/                          React frontend
+tests/test_archseal_v2.py     Deterministic contract tests
 ```
 
-On-chain transactions:
-
-- [Lock evidence transaction](https://explorer-bradbury.genlayer.com/transactions/0x28b9c1fd0c9b65da12bd00d7c6a56aaf46654aace2222484111254a4c123a826)
-- [AI consensus transaction](https://explorer-bradbury.genlayer.com/transactions/0xd16f9a761e677c6c4a9e4ca28848274c49f87f0d591acda76dc51e63452fa57d)
-
-## Frontend transaction handling
-
-The application handles the full GenLayer transaction lifecycle:
-
-- Wallet connection
-- Bradbury network detection
-- Network switching
-- User signature rejection
-- Transaction submission
-- Consensus progress
-- Accepted transactions
-- Accepted transactions containing execution errors
-- Missing contract returns
-- RPC timeouts
-- Retry and refund states
-- Explorer evidence links
-- Reading the final verdict from contract state
-
-A transaction is never displayed as successful only because its consensus status is `ACCEPTED`. The frontend also verifies that contract execution completed successfully.
-
-## Network configuration
-
-```text
-Network: GenLayer Bradbury Testnet
-Chain ID: 4221
-Hex Chain ID: 0x107D
-Currency: GEN
-RPC: https://rpc-bradbury.genlayer.com
-Explorer: https://explorer-bradbury.genlayer.com
-Contract: 0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b
-```
-
-## Run locally
-
-Requirements:
-
-- Node.js 20+
-- pnpm
-- Browser wallet with GenLayer Bradbury configured
-- Bradbury testnet GEN
+## Run the frontend
 
 ```bash
-git clone https://github.com/zakazaka95/ArchSeal.git
-cd ArchSeal
 pnpm install
 pnpm dev
 ```
 
-Create a production build:
+Before publishing V2, set `CONTRACT_ADDRESS` in `src/lib/genlayer.ts` to the newly deployed V2 instance and replace the proof review/transaction links with accepted V2 evidence.
+
+## Verification
 
 ```bash
+python -m unittest discover -s tests -p "test_*.py"
 pnpm build
 ```
 
-## Project structure
+The tests cover policy-controlled scope, transaction-context IDs, complete-evidence consensus, and deterministic inconclusive results for truncated evidence.
 
-```text
-contracts/
-  ArchSeal.py                 Intelligent Contract
+## Evidence
 
-src/
-  components/archseal/       Main application interface
-  lib/genlayer.ts            Contract client and transaction lifecycle
-  lib/github.ts              GitHub pull-request parsing
-  lib/wallet.ts              Wallet and Bradbury network handling
-  routes/                    Application routes
+- [Live dApp](https://archseal.xyz)
+- [GitHub source](https://github.com/zakazaka95/ArchSeal)
+- [Accepted V1 Studio import](https://studio.genlayer.com/?import-contract=0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
+- [Demo video](https://youtu.be/z3wcJ8s4gFY)
 
-public/                       Branding and application icons
-```
+## License
 
-## Trust model
-
-ARCHSEAL does not claim that AI review replaces human maintainers.
-
-It provides an independent, reproducible, and auditable architecture-compliance signal tied to:
-
-- A specific repository
-- A specific pull request
-- Exact commit hashes
-- A declared ADR path
-- A GenLayer validator-consensus result
-
-Maintainers retain the final decision over whether a pull request should be merged.
-
-## Current scope
-
-ARCHSEAL currently supports:
-
-- Public GitHub repositories
-- Pull requests with accessible base and head commits
-- Repository-hosted ADR documents
-- GenLayer Bradbury Testnet
-
-Private repositories and authenticated GitHub API access are not currently supported.
+MIT
