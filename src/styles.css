@@ -148,7 +148,7 @@
     inset: 0;
     z-index: -2;
     pointer-events: none;
-    background-image: url("/__l5e/assets-v1/e42bbfc6-2b41-4ffe-b186-2d27ed67a1b8/archseal-monogram.png");
+    background-image: url("/archseal-monogram.png");
     background-repeat: no-repeat;
     background-position: 118% 78%;
     background-size: min(120vw, 1100px) auto;
