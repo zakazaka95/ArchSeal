@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, Loader2, Lock, ScanLine, Stamp, Wallet } from "lucide-react";
 import {
   CONTRACT_ADDRESS,
@@ -32,6 +32,7 @@ import { CopyValue, Label, Panel, StatusChip, TxLink } from "./primitives";
 import { ReviewDetail } from "./ReviewCard";
 import { cn } from "@/lib/utils";
 import archsealLogoAsset from "@/assets/archseal-logo.png.asset.json";
+import archsealMonogramAsset from "@/assets/archseal-monogram.png.asset.json";
 
 const PROOF_TX =
   "https://explorer-bradbury.genlayer.com/tx/0xf2fbec02ab9f959399e2428b04d36c42293766e94a3178dcbd4a83e01fe26298";
@@ -340,7 +341,10 @@ export function ArchsealApp() {
   /* -------------------------------------------------------------- render */
 
   return (
-    <div className="archseal-surface min-h-screen">
+    <div
+      className="archseal-surface min-h-screen"
+      style={{ "--archseal-watermark": `url(${archsealMonogramAsset.url})` } as CSSProperties}
+    >
       <div className="arch-contours" aria-hidden="true">
         <span />
         <span />
