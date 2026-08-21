@@ -91,13 +91,7 @@ export function Field({
   );
 }
 
-export function StatusChip({
-  status,
-  className,
-}: {
-  status: string;
-  className?: string;
-}) {
+export function StatusChip({ status, className }: { status: string; className?: string }) {
   const s = (status || "").toUpperCase();
   const tone =
     s === "COMPLIANT"
