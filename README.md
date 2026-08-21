@@ -1,288 +1,243 @@
-# Arch Seal Protocol
+# ARCHSEAL
 
-Build a production-quality single-page dApp named ARCHSEAL.
+**Consensus-gated architecture compliance for GitHub pull requests, powered by GenLayer.**
 
-ARCHSEAL is a GenLayer-powered architecture compliance system. It reads a public GitHub pull request and a repository’s Architectural Decision Records, locks the exact base and head commit hashes, and uses independent GenLayer AI validators to decide whether the pull request complies with the repository architecture.
-
-Tagline:
-
-Every codebase has laws.
+Every codebase has laws.  
 Merge only what obeys them.
 
-Do not use mock contract results, a backend, a database, Supabase, or browser-generated AI verdicts. GenLayer contract state is the only source of truth.
+- **Live app:** [archseal.xyz](https://archseal.xyz)
+- **Network:** GenLayer Bradbury Testnet
+- **Chain ID:** `4221` / `0x107D`
+- **Contract:** `0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b`
+- **Open in GenLayer Studio:** [Import contract](https://studio.genlayer.com/?import-contract=0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
 
-GENLAYER CONFIGURATION
+## The problem
 
+Architectural Decision Records define how a software project should be built, but they are usually enforced manually.
+
+Reviewers must compare every pull request against multiple ADR documents. This process is slow, subjective, and difficult to audit. A pull request can also change while it is being reviewed, creating uncertainty about exactly which version received approval.
+
+ARCHSEAL turns architectural governance into a verifiable on-chain workflow.
+
+## What ARCHSEAL does
+
+ARCHSEAL:
+
+1. Reads a public GitHub pull request.
+2. Resolves and records its exact base and head commit hashes.
+3. Reads the repository’s Architectural Decision Records.
+4. Uses independent GenLayer AI validators to evaluate the change.
+5. Reaches consensus on whether the pull request follows the documented architecture.
+6. Stores the verdict and supporting evidence on-chain.
+
+The contract records the exact commits being reviewed, preventing a verdict from being reused for a later or modified version of the pull request.
+
+## Why GenLayer is essential
+
+This workflow cannot be implemented reliably with a traditional deterministic smart contract because it requires:
+
+- Reading live GitHub repository data.
+- Understanding source-code changes.
+- Interpreting natural-language architecture documents.
+- Comparing implementation details with architectural constraints.
+- Producing a reasoned verdict through independent validator consensus.
+
+The frontend does not generate or modify the verdict. GenLayer contract state is the source of truth.
+
+## Verdict output
+
+A completed review can include:
+
+- `COMPLIANT`
+- `NON_COMPLIANT`
+- `INCONCLUSIVE`
+- Compliance score
+- Risk level
+- Human-readable explanation
+- Violated ADR references
+- Exact base commit
+- Exact head commit
+- Repository and pull-request information
+- Number of evaluation attempts
+- Sponsor and contributor wallets
+- Reward and payout status
+
+## Review lifecycle
+
+### 1. Lock evidence
+
+The user submits:
+
+- GitHub pull-request URL
+- ADR directory path
+- Optional GEN reward
+- Contributor wallet
+
+The `open_review` transaction resolves and stores the exact pull-request commits and review parameters.
+
+### 2. Run AI consensus
+
+The `evaluate_review` transaction asks GenLayer validators to independently inspect the pull request and ADR evidence.
+
+Validators reach consensus on a canonical compliance verdict.
+
+### 3. Seal the result
+
+The final verdict, explanation, risk level, score, commit hashes, and evidence are permanently available through the contract.
+
+## Intelligent Contract
+
+The complete contract source is available at:
+
+```text
+contracts/ArchSeal.py
+```
+
+### Write methods
+
+```python
+open_review(
+    repo_owner: str,
+    repo_name: str,
+    pull_request: u256,
+    adr_path: str,
+    contributor_wallet: str
+)
+```
+
+Creates a review and locks its GitHub evidence.
+
+```python
+evaluate_review(review_id: u256)
+```
+
+Runs the GenLayer AI-consensus architecture evaluation.
+
+```python
+refund_review(review_id: u256)
+```
+
+Refunds an eligible review reward when the review cannot be completed.
+
+### Read methods
+
+```python
+get_review(review_id: u256)
+get_recent_reviews(limit: u256)
+get_stats()
+```
+
+## Verified on-chain example
+
+ARCHSEAL evaluated:
+
+[MITLibraries/timdex pull request #978](https://github.com/MITLibraries/timdex/pull/978)
+
+Result: `COMPLIANT`
+
+The contract locked these commits:
+
+```text
+Base: e64bf84681700da4a9b66f37db1098d31e653697
+Head: 229f9bf0b0c458c7436c5050e064cf7bbaa77f98
+```
+
+On-chain transactions:
+
+- [Lock evidence transaction](https://explorer-bradbury.genlayer.com/transactions/0x28b9c1fd0c9b65da12bd00d7c6a56aaf46654aace2222484111254a4c123a826)
+- [AI consensus transaction](https://explorer-bradbury.genlayer.com/transactions/0xd16f9a761e677c6c4a9e4ca28848274c49f87f0d591acda76dc51e63452fa57d)
+
+## Frontend transaction handling
+
+The application handles the full GenLayer transaction lifecycle:
+
+- Wallet connection
+- Bradbury network detection
+- Network switching
+- User signature rejection
+- Transaction submission
+- Consensus progress
+- Accepted transactions
+- Accepted transactions containing execution errors
+- Missing contract returns
+- RPC timeouts
+- Retry and refund states
+- Explorer evidence links
+- Reading the final verdict from contract state
+
+A transaction is never displayed as successful only because its consensus status is `ACCEPTED`. The frontend also verifies that contract execution completed successfully.
+
+## Network configuration
+
+```text
 Network: GenLayer Bradbury Testnet
-Chain ID: 4221 / 0x107D
+Chain ID: 4221
+Hex Chain ID: 0x107D
 Currency: GEN
 RPC: https://rpc-bradbury.genlayer.com
 Explorer: https://explorer-bradbury.genlayer.com
-Contract address:
-
-0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b
-
-Use:
-
-npm install genlayer-js
-
-Import:
-
-import { createClient } from "genlayer-js";
-import { testnetBradbury } from "genlayer-js/chains";
-import { TransactionStatus } from "genlayer-js/types";
-
-Create a read-only client without an account and a write client using the connected browser wallet:
-
-const readClient = createClient({
-chain: testnetBradbury,
-});
-
-const writeClient = createClient({
-chain: testnetBradbury,
-account: address as 0x${string},
-provider: window.ethereum,
-});
-
-Before a write transaction, call:
-
-await writeClient.connect("testnetBradbury");
-
-Wallet connection must use standard EIP-1193 methods. Never call wallet_getSnaps and do not require MetaMask Snaps.
-
-CONTRACT METHODS
-
-open_review is payable:
-
-open_review(
-repo_owner: string,
-repo_name: string,
-pull_request: bigint,
-adr_path: string,
-contributor_wallet: string
-)
-
-evaluate_review(review_id: bigint)
-
-refund_review(review_id: bigint)
-
-Read methods:
-
-get_review(review_id: bigint)
-get_recent_reviews(limit: bigint)
-get_stats()
-
-A review contains:
-
-id
-repo_owner
-repo_name
-pull_request
-adr_path
-base_sha
-head_sha
-sponsor
-contributor_wallet
-reward_wei
-status
-attempts
-opened_at
-decided_at
-payout_scheduled
-last_verdict
-
-last_verdict contains:
-
-decision
-score
-risk_level
-summary
-violated_adrs
-findings
-base_sha
-head_sha
-
-Each finding contains:
-
-adr
-file
-finding
-
-USER FLOW
-
-The user connects a browser wallet.
-
-The user pastes a public GitHub PR URL such as:
-https://github.com/MITLibraries/timdex/pull/978
-
-Parse owner, repository, and PR number from the URL.
-
-Let the user enter the ADR path, defaulting to docs/adr.
-
-Contributor wallet defaults to the connected wallet but remains editable.
-
-Allow an optional GEN reward. Default is 0 GEN.
-
-Before open_review, read get_stats and determine the expected next review ID as total_reviews + 1.
-
-Submit open_review with the reward converted to wei.
-
-Wait for TransactionStatus.ACCEPTED with up to 200 retries and a 5-second interval.
-
-ACCEPTED alone is not enough. Detect execution errors and show a clear failure state.
-
-After successful execution, poll get_review(expectedReviewId) until the stored review is available.
-
-Show the locked base and head commits.
-
-Display a second explicit button: RUN CONSENSUS REVIEW.
-
-When clicked, call evaluate_review(reviewId).
-
-Wait for ACCEPTED, check execution success, then poll get_review until status becomes COMPLIANT, VIOLATES_ADR, or INCONCLUSIVE.
-
-Never parse text copied from the block explorer. Always read the structured result through get_review.
-
-Provide a direct link to the Bradbury transaction in every transaction state.
-
-The two wallet signatures must be clearly explained:
-
-Signature 1 — Lock Evidence
-Signature 2 — Run AI Consensus
-
-STATUS COPY
-
-While opening:
-
-Pinning the repository constitution and exact pull request commits on-chain.
-
-While evaluating:
-
-Independent GenLayer validators are reviewing the pinned code against the accepted architecture. This usually takes a few minutes.
-
-Do not say 5–10 minutes.
-
-VERDICT DISPLAY
-
-COMPLIANT:
-Large acid-green seal reading ARCHITECTURE COMPLIANT.
-
-VIOLATES_ADR:
-Large red seal reading COVENANT VIOLATED.
-
-INCONCLUSIVE:
-Large amber seal reading EVIDENCE INCONCLUSIVE, with Retry and Refund actions when allowed.
-
-Display:
-
-repository and PR number
-shortened base and head hashes with copy buttons
-compliance score
-risk level
-summary
-violated ADRs
-individual findings with ADR and changed file
-reward amount
-payout status
-review ID
-sponsor and contributor
-Bradbury Explorer link
-
-PUBLIC LIVE PROOF
-
-The app must work without a connected wallet for reading existing reviews.
-
-Add a prominent Live Consensus Proof section preloaded with review ID 1 from the deployed contract. Read it live using get_review(1); do not hardcode its verdict.
-
-It should show the successful public review of MITLibraries/timdex PR #978 and link to this accepted evaluation transaction:
-
-https://explorer-bradbury.genlayer.com/transactions/0xd16f9a761e677c6c4a9e4ca28848274c49f87f0d591acda76dc51e63452fa57d
-
-Also load get_stats and get_recent_reviews(6) on page load.
-
-VISUAL DIRECTION
-
-Create a premium, serious developer-governance product, not a generic crypto dashboard.
-
-Use:
-
-deep obsidian background
-warm ivory typography
-acid-green compliance accents
-amber for pending/inconclusive
-restrained red for violations
-subtle grid and repository-map background
-editorial serif display font paired with a precise monospace font
-thin architectural diagram lines
-soft glass panels with crisp borders
-subtle animations only
-
-Hero layout:
-
-small label: CONSENSUS-GATED SOFTWARE
-large headline: Every codebase has laws.
-italic second line: Merge only what obeys them.
-short explanation
-primary GitHub PR input panel
-three-stage diagram: PIN EVIDENCE → AI CONSENSUS → ON-CHAIN SEAL
-
-The interface should feel like a combination of a premium security product, an architectural blueprint, and an institutional verification terminal.
-
-Avoid:
-
-purple crypto gradients
-cartoon illustrations
-oversized glowing blobs
-fake terminal text
-fake metrics
-generic SaaS cards
-excessive scrolling
-unreadable low-contrast text
-
-RESPONSIVENESS
-
-The complete primary workflow should fit comfortably on a standard laptop screen. Mobile must remain usable. Results may expand below the fold, but the active verdict and essential evidence must remain immediately visible.
-
-ERROR HANDLING
-
-Handle:
-
-missing wallet
-wrong network
-invalid GitHub PR URL
-private or missing repository
-missing ADR path
-GitHub rate limiting
-transaction rejected by wallet
-accepted transaction containing an execution error
-missing contract return
-INCONCLUSIVE verdict
-refund failure
-RPC timeout
-
-Never show a successful seal when execution failed.
-
-Build the full working interface now. Do not change the contract address, network, chain ID, RPC, method names, or argument order.
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://archseal-ai-guard.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/d70e53d6-6f37-4e96-965b-5b7e627efab3).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+Contract: 0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b
 ```
+
+## Run locally
+
+Requirements:
+
+- Node.js 20+
+- pnpm
+- Browser wallet with GenLayer Bradbury configured
+- Bradbury testnet GEN
+
+```bash
+git clone https://github.com/zakazaka95/ArchSeal.git
+cd ArchSeal
+pnpm install
+pnpm dev
+```
+
+Create a production build:
+
+```bash
+pnpm build
+```
+
+## Project structure
+
+```text
+contracts/
+  ArchSeal.py                 Intelligent Contract
+
+src/
+  components/archseal/       Main application interface
+  lib/genlayer.ts            Contract client and transaction lifecycle
+  lib/github.ts              GitHub pull-request parsing
+  lib/wallet.ts              Wallet and Bradbury network handling
+  routes/                    Application routes
+
+public/                       Branding and application icons
+```
+
+## Trust model
+
+ARCHSEAL does not claim that AI review replaces human maintainers.
+
+It provides an independent, reproducible, and auditable architecture-compliance signal tied to:
+
+- A specific repository
+- A specific pull request
+- Exact commit hashes
+- A declared ADR path
+- A GenLayer validator-consensus result
+
+Maintainers retain the final decision over whether a pull request should be merged.
+
+## Current scope
+
+ARCHSEAL currently supports:
+
+- Public GitHub repositories
+- Pull requests with accessible base and head commits
+- Repository-hosted ADR documents
+- GenLayer Bradbury Testnet
+
+Private repositories and authenticated GitHub API access are not currently supported.
