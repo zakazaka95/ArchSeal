@@ -1,6 +1,7 @@
 // GenLayer Bradbury client helpers. All imports are dynamic so nothing
 // browser-only is evaluated during SSR.
 
+import type { GenLayerClient, GenLayerChain } from "genlayer-js";
 import { ensureBradburyNetwork } from "./wallet";
 
 export const CONTRACT_ADDRESS = "0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d" as `0x${string}`;
@@ -58,16 +59,18 @@ export type Review = {
 
 export type Stats = Record<string, unknown> & { total_reviews?: number };
 
+type Client = GenLayerClient<GenLayerChain>;
+
 /* -------------------------------------------------------------- clients */
 
-let readClientPromise: Promise<any> | null = null;
+let readClientPromise: Promise<Client> | null = null;
 
 async function getReadClient() {
   if (!readClientPromise) {
     readClientPromise = (async () => {
       const { createClient } = await import("genlayer-js");
       const { testnetBradbury } = await import("genlayer-js/chains");
-      return createClient({ chain: testnetBradbury as any });
+      return createClient({ chain: testnetBradbury });
     })();
   }
   return readClientPromise;
@@ -82,10 +85,10 @@ export async function getWriteClient(_address?: string) {
   const { testnetBradbury } = await import("genlayer-js/chains");
   const { provider, address } = await ensureBradburyNetwork();
   return createClient({
-    chain: testnetBradbury as any,
+    chain: testnetBradbury,
     account: address,
-    provider: provider as any,
-  } as any);
+    provider: provider,
+  });
 }
 
 /* ------------------------------------------------------------ normalize */
@@ -99,15 +102,22 @@ const num = (v: unknown): number => {
 
 const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
-const pick = (o: any, k: string) => (o && typeof o === "object" ? (o[k] ?? o.get?.(k)) : undefined);
+const pick = (o: unknown, k: string) => {
+  if (!o || typeof o !== "object") return undefined;
+  const record = o as Record<string, unknown>;
+  if (k in record) return record[k];
+  const getter = record.get;
+  if (typeof getter === "function") return getter.bind(record)(k);
+  return undefined;
+};
 
-function normalizeVerdict(raw: any): Verdict {
+function normalizeVerdict(raw: unknown): Verdict {
   if (!raw || typeof raw !== "object") return null;
   const decision = str(pick(raw, "decision"));
   if (!decision) return null;
   const findingsRaw = pick(raw, "findings");
   const findings: Finding[] = Array.isArray(findingsRaw)
-    ? findingsRaw.map((f: any) => ({
+    ? findingsRaw.map((f: unknown) => ({
         adr: str(pick(f, "adr")),
         file: str(pick(f, "file")),
         finding: str(pick(f, "finding")),
@@ -115,6 +125,7 @@ function normalizeVerdict(raw: any): Verdict {
     : [];
   const violated = pick(raw, "violated_adrs");
   const scoreRaw = pick(raw, "score");
+  const incompleteReasons = pick(raw, "incomplete_reasons");
   return {
     review_id: str(pick(raw, "review_id")),
     decision,
@@ -127,16 +138,15 @@ function normalizeVerdict(raw: any): Verdict {
     head_sha: str(pick(raw, "head_sha")),
     policy_hash: str(pick(raw, "policy_hash")),
     evidence_complete: Boolean(pick(raw, "evidence_complete")),
-    incomplete_reasons: Array.isArray(pick(raw, "incomplete_reasons"))
-      ? pick(raw, "incomplete_reasons").map(str)
-      : [],
+    incomplete_reasons: Array.isArray(incompleteReasons) ? incompleteReasons.map(str) : [],
   };
 }
 
-export function normalizeReview(raw: any): Review | null {
+export function normalizeReview(raw: unknown): Review | null {
   if (!raw || typeof raw !== "object") return null;
   const id = pick(raw, "id");
   if (id === undefined || id === null) return null;
+  const policyMaintainers = pick(raw, "policy_maintainers");
   return {
     id: str(id),
     sequence: num(pick(raw, "sequence")),
@@ -148,9 +158,7 @@ export function normalizeReview(raw: any): Review | null {
     policy_schema: str(pick(raw, "policy_schema")),
     policy_version: str(pick(raw, "policy_version")),
     policy_hash: str(pick(raw, "policy_hash")),
-    policy_maintainers: Array.isArray(pick(raw, "policy_maintainers"))
-      ? pick(raw, "policy_maintainers").map(str)
-      : [],
+    policy_maintainers: Array.isArray(policyMaintainers) ? policyMaintainers.map(str) : [],
     base_sha: str(pick(raw, "base_sha")),
     head_sha: str(pick(raw, "head_sha")),
     sponsor: str(pick(raw, "sponsor")),
@@ -195,7 +203,7 @@ export async function getRecentReviews(limit = 6): Promise<Review[]> {
 }
 
 export async function getStats(): Promise<Stats> {
-  const raw: any = await read("get_stats", []);
+  const raw = await read("get_stats", []);
   if (!raw || typeof raw !== "object") return {};
   const out: Stats = {};
   for (const [k, v] of Object.entries(raw)) out[k] = typeof v === "bigint" ? Number(v) : v;
@@ -206,20 +214,32 @@ export async function getStats(): Promise<Stats> {
 
 export type TxProgress = (msg: string, hash?: string) => void;
 
-async function waitAndVerify(client: any, hash: string, onProgress: TxProgress) {
+type Receipt = {
+  consensus_data?: { leader_receipt?: ReceiptEntry[] | ReceiptEntry };
+  consensusData?: { leaderReceipt?: ReceiptEntry[] | ReceiptEntry };
+  leader_receipt?: ReceiptEntry[] | ReceiptEntry;
+};
+
+type ReceiptEntry = {
+  execution_result?: string;
+  executionResult?: string;
+  error?: string;
+};
+
+async function waitAndVerify(client: Client, hash: string, onProgress: TxProgress) {
   const { TransactionStatus } = await import("genlayer-js/types");
   onProgress("Waiting for the Bradbury network to accept the transaction.", hash);
-  const receipt: any = await client.waitForTransactionReceipt({
+  const receipt = await client.waitForTransactionReceipt({
     hash: hash as `0x${string}`,
     status: TransactionStatus.ACCEPTED,
     retries: 200,
     interval: 5000,
   });
-  assertExecutionSucceeded(receipt);
+  assertExecutionSucceeded(receipt as Receipt);
   return receipt;
 }
 
-function assertExecutionSucceeded(receipt: any) {
+function assertExecutionSucceeded(receipt: Receipt) {
   const data = receipt?.consensus_data ?? receipt?.consensusData ?? receipt;
   const serialized = (() => {
     try {
