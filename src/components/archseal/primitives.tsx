@@ -80,7 +80,7 @@ export function Field({
   className,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   className?: string;
 }) {
   return (
