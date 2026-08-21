@@ -55,7 +55,7 @@ export function TxLink({
   className,
 }: {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
