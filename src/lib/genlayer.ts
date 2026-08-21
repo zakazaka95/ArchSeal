@@ -61,8 +61,6 @@ export type Stats = Record<string, unknown> & { total_reviews?: number };
 
 type Client = GenLayerClient<GenLayerChain>;
 
-
-
 /* -------------------------------------------------------------- clients */
 
 let readClientPromise: Promise<Client> | null = null;
