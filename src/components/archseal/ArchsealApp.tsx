@@ -56,7 +56,7 @@ export function ArchsealApp() {
     let cancelled = false;
     (async () => {
       try {
-        const accounts: string[] = await eth.request({ method: "eth_accounts" });
+        const accounts = (await eth.request({ method: "eth_accounts" })) as string[];
         if (!cancelled && accounts?.[0]) setAddress(accounts[0]);
         const id = await getChainId();
         if (!cancelled) setChainId(id);
@@ -64,8 +64,8 @@ export function ArchsealApp() {
         /* ignore */
       }
     })();
-    const onAccounts = (accs: string[]) => setAddress(accs?.[0] ?? "");
-    const onChain = (id: string) => setChainId(id);
+    const onAccounts = (accs: unknown) => setAddress((accs as string[])?.[0] ?? "");
+    const onChain = (id: unknown) => setChainId(id as string);
     eth.on?.("accountsChanged", onAccounts);
     eth.on?.("chainChanged", onChain);
     return () => {
@@ -353,11 +353,7 @@ export function ArchsealApp() {
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <div className="flex items-center gap-3">
-            <img
-              src={archsealLogoAsset.url}
-              alt="ARCHSEAL"
-              className="h-7 w-auto sm:h-9"
-            />
+            <img src={archsealLogoAsset.url} alt="ARCHSEAL" className="h-7 w-auto sm:h-9" />
             <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
           </div>
           <div className="flex items-center gap-3">

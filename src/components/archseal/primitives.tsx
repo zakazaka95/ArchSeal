@@ -1,27 +1,13 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function Label({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+export function Label({ children, className }: { children: ReactNode; className?: string }) {
   return <span className={cn("label-xs", className)}>{children}</span>;
 }
 
-export function Panel({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={cn("glass-panel rounded-lg", className)}>{children}</div>
-  );
+export function Panel({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("glass-panel rounded-lg", className)}>{children}</div>;
 }
 
 export function CopyValue({
@@ -69,7 +55,7 @@ export function TxLink({
   className,
 }: {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
 }) {
   return (
@@ -94,7 +80,7 @@ export function Field({
   className,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   className?: string;
 }) {
   return (
@@ -105,13 +91,7 @@ export function Field({
   );
 }
 
-export function StatusChip({
-  status,
-  className,
-}: {
-  status: string;
-  className?: string;
-}) {
+export function StatusChip({ status, className }: { status: string; className?: string }) {
   const s = (status || "").toUpperCase();
   const tone =
     s === "COMPLIANT"
