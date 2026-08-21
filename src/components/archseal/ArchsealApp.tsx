@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, Loader2, Lock, ScanLine, Stamp, Wallet } from "lucide-react";
 import {
   CONTRACT_ADDRESS,
@@ -343,7 +343,7 @@ export function ArchsealApp() {
   return (
     <div
       className="archseal-surface min-h-screen"
-      style={{ "--archseal-watermark": `url(${archsealMonogramAsset.url})` } as React.CSSProperties}
+      style={{ "--archseal-watermark": `url(${archsealMonogramAsset.url})` } as CSSProperties}
     >
       <div className="arch-contours" aria-hidden="true">
         <span />
