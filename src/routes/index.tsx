@@ -6,6 +6,7 @@ const description =
   "ARCHSEAL pins a GitHub pull request's exact commits and a repository's ADRs on GenLayer Bradbury, then seals an AI-consensus compliance verdict on-chain.";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title },
