@@ -1,7 +1,7 @@
 // GenLayer Bradbury client helpers. All imports are dynamic so nothing
 // browser-only is evaluated during SSR.
 
-import type { GenLayerClient, Hash, CalldataEncodable } from "genlayer-js/types";
+import type { GenLayerClient, GenLayerChain, Hash, CalldataEncodable } from "genlayer-js/types";
 import { ensureBradburyNetwork } from "./wallet";
 
 export const CONTRACT_ADDRESS = "0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d" as `0x${string}`;
@@ -59,7 +59,8 @@ export type Review = {
 
 export type Stats = Record<string, unknown> & { total_reviews?: number };
 
-type Client = GenLayerClient;
+type Client = GenLayerClient<GenLayerChain>;
+
 
 
 /* -------------------------------------------------------------- clients */
