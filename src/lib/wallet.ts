@@ -1,19 +1,21 @@
 import { CHAIN_ID_HEX, RPC_URL, EXPLORER_URL } from "./genlayer";
 
 export type Eip1193 = {
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<any>;
-  on?: (event: string, cb: (...a: any[]) => void) => void;
-  removeListener?: (event: string, cb: (...a: any[]) => void) => void;
+  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>;
+  on?: (event: string, cb: (...a: unknown[]) => void) => void;
+  removeListener?: (event: string, cb: (...a: unknown[]) => void) => void;
 };
+
+interface InjectedProvider extends Eip1193 {
+  providers?: Eip1193[];
+  isMetaMask?: boolean;
+}
 
 export function getEthereum(): Eip1193 | null {
   if (typeof window === "undefined") return null;
-  const injected = (window as any).ethereum;
+  const injected = (window as { ethereum?: InjectedProvider }).ethereum;
   if (!injected) return null;
-  return (
-    (injected.providers?.find((p: any) => p?.isMetaMask) as Eip1193) ??
-    (injected as Eip1193)
-  );
+  return (injected.providers?.find((p: Eip1193) => p?.isMetaMask) as Eip1193) ?? (injected as Eip1193);
 }
 
 export function getWalletProvider(): Eip1193 {
@@ -30,16 +32,16 @@ export async function ensureBradburyNetwork(): Promise<{
   const provider = getWalletProvider();
   await provider.request({ method: "eth_requestAccounts" });
   await switchToBradbury();
-  const accounts: string[] = await provider.request({ method: "eth_accounts" });
-  if (!accounts?.[0]) throw new Error("Wallet account is not connected.");
+  const accounts = await provider.request({ method: "eth_accounts" });
+  if (!Array.isArray(accounts) || !accounts[0]) throw new Error("Wallet account is not connected.");
   return { provider, address: accounts[0] as `0x${string}` };
 }
 
 export async function requestAccounts(): Promise<string> {
   const eth = getEthereum();
   if (!eth) throw new Error("NO_WALLET");
-  const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
-  if (!accounts?.length) throw new Error("No wallet account was authorized.");
+  const accounts = await eth.request({ method: "eth_requestAccounts" });
+  if (!Array.isArray(accounts) || !accounts.length) throw new Error("No wallet account was authorized.");
   return accounts[0]!;
 }
 
@@ -47,7 +49,7 @@ export async function getChainId(): Promise<string | null> {
   const eth = getEthereum();
   if (!eth) return null;
   try {
-    return await eth.request({ method: "eth_chainId" });
+    return await eth.request({ method: "eth_chainId" }) as string | null;
   } catch {
     return null;
   }
@@ -65,8 +67,9 @@ export async function switchToBradbury(): Promise<void> {
       method: "wallet_switchEthereumChain",
       params: [{ chainId: CHAIN_ID_HEX }],
     });
-  } catch (err: any) {
-    if (err?.code === 4902 || /unrecognized chain/i.test(err?.message ?? "")) {
+  } catch (err: unknown) {
+    const e = err as { code?: number; message?: string };
+    if (e?.code === 4902 || /unrecognized chain/i.test(e?.message ?? "")) {
       await eth.request({
         method: "wallet_addEthereumChain",
         params: [
@@ -118,7 +121,7 @@ export function shortAddress(a: string) {
 }
 
 export function describeWalletError(err: unknown): string {
-  const e = err as any;
+  const e = err as { code?: number; message?: string };
   const msg = String(e?.message ?? e ?? "Unknown error");
   if (e?.code === 4001 || /user rejected|user denied/i.test(msg))
     return "Transaction rejected in your wallet.";
