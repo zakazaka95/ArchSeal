@@ -1,13 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ShieldCheck, ShieldAlert, ShieldQuestion } from "lucide-react";
 
-export function VerdictSeal({
-  status,
-  className,
-}: {
-  status: string;
-  className?: string;
-}) {
+export function VerdictSeal({ status, className }: { status: string; className?: string }) {
   const s = (status || "").toUpperCase();
 
   const config =
