@@ -1,8 +1,7 @@
 // GenLayer Bradbury client helpers. All imports are dynamic so nothing
 // browser-only is evaluated during SSR.
 
-import type { GenLayerClient } from "genlayer-js/types";
-import type { GenLayerChain } from "genlayer-js/chains";
+import type { GenLayerClient, GenLayerChain, Hash } from "genlayer-js/types";
 import { ensureBradburyNetwork } from "./wallet";
 
 export const CONTRACT_ADDRESS = "0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d" as `0x${string}`;
@@ -185,7 +184,7 @@ async function read(functionName: string, args: unknown[]) {
   return client.readContract({
     address: CONTRACT_ADDRESS,
     functionName,
-    args,
+    args: args as unknown[],
   });
 }
 
@@ -233,7 +232,7 @@ async function waitAndVerify(client: Client, hash: string, onProgress: TxProgres
   const { TransactionStatus } = await import("genlayer-js/types");
   onProgress("Waiting for the Bradbury network to accept the transaction.", hash);
   const receipt = await client.waitForTransactionReceipt({
-    hash: hash as `0x${string}`,
+    hash: hash as Hash,
     status: TransactionStatus.ACCEPTED,
     retries: 200,
     interval: 5000,

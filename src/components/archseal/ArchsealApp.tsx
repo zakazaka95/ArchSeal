@@ -56,7 +56,7 @@ export function ArchsealApp() {
     let cancelled = false;
     (async () => {
       try {
-        const accounts: string[] = await eth.request({ method: "eth_accounts" });
+        const accounts = (await eth.request({ method: "eth_accounts" })) as string[];
         if (!cancelled && accounts?.[0]) setAddress(accounts[0]);
         const id = await getChainId();
         if (!cancelled) setChainId(id);
