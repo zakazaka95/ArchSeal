@@ -71,7 +71,9 @@ async function getReadClient() {
     readClientPromise = (async () => {
       const { createClient } = await import("genlayer-js");
       const { testnetBradbury } = await import("genlayer-js/chains");
-      return createClient({ chain: testnetBradbury });
+      return createClient({
+        chain: testnetBradbury as unknown as GenLayerChain,
+      });
     })();
   }
   return readClientPromise;
@@ -86,7 +88,7 @@ export async function getWriteClient(_address?: string) {
   const { testnetBradbury } = await import("genlayer-js/chains");
   const { provider, address } = await ensureBradburyNetwork();
   return createClient({
-    chain: testnetBradbury,
+    chain: testnetBradbury as unknown as GenLayerChain,
     account: address,
     provider: provider,
   });
@@ -107,7 +109,7 @@ const pick = (o: unknown, k: string) => {
   if (!o || typeof o !== "object") return undefined;
   const record = o as Record<string, unknown>;
   if (k in record) return record[k];
-  const getter = record.get;
+  const getter = record["get"];
   if (typeof getter === "function") return getter.bind(record)(k);
   return undefined;
 };
@@ -241,7 +243,10 @@ async function waitAndVerify(client: Client, hash: string, onProgress: TxProgres
 }
 
 function assertExecutionSucceeded(receipt: Receipt) {
-  const data = receipt?.consensus_data ?? receipt?.consensusData ?? receipt;
+  const data = (receipt?.consensus_data ?? receipt?.consensusData ?? receipt) as {
+    leader_receipt?: ReceiptEntry[] | ReceiptEntry;
+    leaderReceipt?: ReceiptEntry[] | ReceiptEntry;
+  };
   const serialized = (() => {
     try {
       return JSON.stringify(receipt, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
