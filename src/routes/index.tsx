@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { ArchsealApp } from "@/components/archseal/ArchsealApp";
 
 const title = "ARCHSEAL — Consensus-Gated Software";
@@ -21,5 +21,9 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  return <ArchsealApp />;
+  return (
+    <ClientOnly fallback={null}>
+      <ArchsealApp />
+    </ClientOnly>
+  );
 }
