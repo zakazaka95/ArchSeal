@@ -16,8 +16,7 @@ export function getEthereum(): Eip1193 | null {
   const injected = (window as { ethereum?: InjectedProvider }).ethereum;
   if (!injected) return null;
   return (
-    (injected.providers?.find((p: Eip1193) => p?.isMetaMask) as Eip1193) ??
-    (injected as Eip1193)
+    (injected.providers?.find((p: Eip1193) => p?.isMetaMask) as Eip1193) ?? (injected as Eip1193)
   );
 }
 
