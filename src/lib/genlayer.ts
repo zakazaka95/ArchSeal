@@ -61,7 +61,6 @@ export type Stats = Record<string, unknown> & { total_reviews?: number };
 
 type Client = GenLayerClient;
 
-const chainOf = <T>(c: T) => c as NonNullable<Parameters<typeof import("genlayer-js").createClient>[0]["chain"]>; 
 
 /* -------------------------------------------------------------- clients */
 
@@ -73,7 +72,7 @@ async function getReadClient() {
       const { createClient } = await import("genlayer-js");
       const { testnetBradbury } = await import("genlayer-js/chains");
       return createClient({
-        chain: testnetBradbury as unknown as GenLayerChain,
+        chain: testnetBradbury as never,
       });
     })();
   }
@@ -89,7 +88,7 @@ export async function getWriteClient(_address?: string) {
   const { testnetBradbury } = await import("genlayer-js/chains");
   const { provider, address } = await ensureBradburyNetwork();
   return createClient({
-    chain: testnetBradbury as unknown as GenLayerChain,
+    chain: testnetBradbury as never,
     account: address,
     provider: provider,
   });
@@ -186,7 +185,7 @@ async function read(functionName: string, args: unknown[]) {
   return client.readContract({
     address: CONTRACT_ADDRESS,
     functionName,
-    args: args as unknown[],
+    args: args as CalldataEncodable[],
   });
 }
 
