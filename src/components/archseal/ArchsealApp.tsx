@@ -353,11 +353,7 @@ export function ArchsealApp() {
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <div className="flex items-center gap-3">
-            <img
-              src={archsealLogoAsset.url}
-              alt="ARCHSEAL"
-              className="h-7 w-auto sm:h-9"
-            />
+            <img src={archsealLogoAsset.url} alt="ARCHSEAL" className="h-7 w-auto sm:h-9" />
             <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
           </div>
           <div className="flex items-center gap-3">
