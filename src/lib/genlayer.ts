@@ -1,19 +1,19 @@
 // GenLayer Bradbury client helpers. All imports are dynamic so nothing
 // browser-only is evaluated during SSR.
 
-export const CONTRACT_ADDRESS =
-  "0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b" as `0x${string}`;
+export const CONTRACT_ADDRESS = "0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d" as `0x${string}`;
 export const CHAIN_ID = 4221;
 export const CHAIN_ID_HEX = "0x107D";
 export const RPC_URL = "https://rpc-bradbury.genlayer.com";
 export const EXPLORER_URL = "https://explorer-bradbury.genlayer.com";
 
-export const txLink = (hash: string) => `${EXPLORER_URL}/transactions/${hash}`;
+export const txLink = (hash: string) => `${EXPLORER_URL}/tx/${hash}`;
 export const addressLink = (addr: string) => `${EXPLORER_URL}/address/${addr}`;
 
 export type Finding = { adr: string; file: string; finding: string };
 
 export type Verdict = {
+  review_id: string;
   decision: string;
   score: number | null;
   risk_level: string;
@@ -22,17 +22,27 @@ export type Verdict = {
   findings: Finding[];
   base_sha: string;
   head_sha: string;
+  policy_hash: string;
+  evidence_complete: boolean;
+  incomplete_reasons: string[];
 } | null;
 
 export type Review = {
-  id: number;
+  id: string;
+  sequence: number;
   repo_owner: string;
   repo_name: string;
   pull_request: number;
   adr_path: string;
+  policy_path: string;
+  policy_schema: string;
+  policy_version: string;
+  policy_hash: string;
+  policy_maintainers: string[];
   base_sha: string;
   head_sha: string;
   sponsor: string;
+  origin: string;
   contributor_wallet: string;
   reward_wei: string;
   status: string;
@@ -41,6 +51,7 @@ export type Review = {
   decided_at: number | string;
   payout_scheduled: boolean;
   last_verdict: Verdict;
+  seal_hash: string;
 };
 
 export type Stats = Record<string, unknown> & { total_reviews?: number };
@@ -81,16 +92,13 @@ export async function getWriteClient(_address?: string) {
 const num = (v: unknown): number => {
   if (typeof v === "bigint") return Number(v);
   if (typeof v === "number") return v;
-  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v)))
-    return Number(v);
+  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
   return 0;
 };
 
-const str = (v: unknown): string =>
-  v === null || v === undefined ? "" : String(v);
+const str = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
-const pick = (o: any, k: string) =>
-  o && typeof o === "object" ? (o[k] ?? o.get?.(k)) : undefined;
+const pick = (o: any, k: string) => (o && typeof o === "object" ? (o[k] ?? o.get?.(k)) : undefined);
 
 function normalizeVerdict(raw: any): Verdict {
   if (!raw || typeof raw !== "object") return null;
@@ -107,17 +115,20 @@ function normalizeVerdict(raw: any): Verdict {
   const violated = pick(raw, "violated_adrs");
   const scoreRaw = pick(raw, "score");
   return {
+    review_id: str(pick(raw, "review_id")),
     decision,
-    score:
-      scoreRaw === null || scoreRaw === undefined || scoreRaw === ""
-        ? null
-        : num(scoreRaw),
+    score: scoreRaw === null || scoreRaw === undefined || scoreRaw === "" ? null : num(scoreRaw),
     risk_level: str(pick(raw, "risk_level")),
     summary: str(pick(raw, "summary")),
     violated_adrs: Array.isArray(violated) ? violated.map(str) : [],
     findings,
     base_sha: str(pick(raw, "base_sha")),
     head_sha: str(pick(raw, "head_sha")),
+    policy_hash: str(pick(raw, "policy_hash")),
+    evidence_complete: Boolean(pick(raw, "evidence_complete")),
+    incomplete_reasons: Array.isArray(pick(raw, "incomplete_reasons"))
+      ? pick(raw, "incomplete_reasons").map(str)
+      : [],
   };
 }
 
@@ -126,14 +137,23 @@ export function normalizeReview(raw: any): Review | null {
   const id = pick(raw, "id");
   if (id === undefined || id === null) return null;
   return {
-    id: num(id),
+    id: str(id),
+    sequence: num(pick(raw, "sequence")),
     repo_owner: str(pick(raw, "repo_owner")),
     repo_name: str(pick(raw, "repo_name")),
     pull_request: num(pick(raw, "pull_request")),
     adr_path: str(pick(raw, "adr_path")),
+    policy_path: str(pick(raw, "policy_path")),
+    policy_schema: str(pick(raw, "policy_schema")),
+    policy_version: str(pick(raw, "policy_version")),
+    policy_hash: str(pick(raw, "policy_hash")),
+    policy_maintainers: Array.isArray(pick(raw, "policy_maintainers"))
+      ? pick(raw, "policy_maintainers").map(str)
+      : [],
     base_sha: str(pick(raw, "base_sha")),
     head_sha: str(pick(raw, "head_sha")),
     sponsor: str(pick(raw, "sponsor")),
+    origin: str(pick(raw, "origin")),
     contributor_wallet: str(pick(raw, "contributor_wallet")),
     reward_wei: str(pick(raw, "reward_wei") ?? "0"),
     status: str(pick(raw, "status")),
@@ -142,6 +162,7 @@ export function normalizeReview(raw: any): Review | null {
     decided_at: str(pick(raw, "decided_at")),
     payout_scheduled: Boolean(pick(raw, "payout_scheduled")),
     last_verdict: normalizeVerdict(pick(raw, "last_verdict")),
+    seal_hash: str(pick(raw, "seal_hash")),
   };
 }
 
@@ -156,8 +177,13 @@ async function read(functionName: string, args: unknown[]) {
   });
 }
 
-export async function getReview(reviewId: number | bigint) {
-  const raw = await read("get_review", [BigInt(reviewId)]);
+export async function getReview(reviewId: string) {
+  const raw = await read("get_review", [reviewId]);
+  return normalizeReview(raw);
+}
+
+export async function getLatestReview(sponsor: string) {
+  const raw = await read("get_latest_review", [sponsor]);
   return normalizeReview(raw);
 }
 
@@ -171,19 +197,8 @@ export async function getStats(): Promise<Stats> {
   const raw: any = await read("get_stats", []);
   if (!raw || typeof raw !== "object") return {};
   const out: Stats = {};
-  for (const [k, v] of Object.entries(raw))
-    out[k] = typeof v === "bigint" ? Number(v) : v;
+  for (const [k, v] of Object.entries(raw)) out[k] = typeof v === "bigint" ? Number(v) : v;
   return out;
-}
-
-export function totalReviewsFrom(stats: Stats): number {
-  const candidates = ["total_reviews", "reviews", "review_count", "total"];
-  for (const key of candidates) {
-    const v = stats[key];
-    if (typeof v === "number") return v;
-    if (typeof v === "string" && !Number.isNaN(Number(v))) return Number(v);
-  }
-  return 0;
 }
 
 /* --------------------------------------------------------------- writes */
@@ -207,16 +222,13 @@ function assertExecutionSucceeded(receipt: any) {
   const data = receipt?.consensus_data ?? receipt?.consensusData ?? receipt;
   const serialized = (() => {
     try {
-      return JSON.stringify(receipt, (_k, v) =>
-        typeof v === "bigint" ? v.toString() : v,
-      );
+      return JSON.stringify(receipt, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
     } catch {
       return "";
     }
   })();
 
-  const leader =
-    data?.leader_receipt ?? data?.leaderReceipt ?? receipt?.leader_receipt;
+  const leader = data?.leader_receipt ?? data?.leaderReceipt ?? receipt?.leader_receipt;
   const receipts = Array.isArray(leader) ? leader : leader ? [leader] : [];
   for (const r of receipts) {
     const mode = String(r?.execution_result ?? r?.executionResult ?? "");
@@ -238,7 +250,6 @@ export async function openReview(params: {
   repoOwner: string;
   repoName: string;
   pullRequest: number;
-  adrPath: string;
   contributorWallet: string;
   valueWei: bigint;
   onProgress: TxProgress;
@@ -248,13 +259,7 @@ export async function openReview(params: {
   const hash: string = await client.writeContract({
     address: CONTRACT_ADDRESS,
     functionName: "open_review",
-    args: [
-      params.repoOwner,
-      params.repoName,
-      BigInt(params.pullRequest),
-      params.adrPath,
-      params.contributorWallet,
-    ],
+    args: [params.repoOwner, params.repoName, BigInt(params.pullRequest), params.contributorWallet],
     value: params.valueWei,
   });
   await waitAndVerify(client, hash, params.onProgress);
@@ -264,14 +269,14 @@ export async function openReview(params: {
 export async function callWithReviewId(
   functionName: "evaluate_review" | "refund_review",
   address: string,
-  reviewId: number,
+  reviewId: string,
   onProgress: TxProgress,
 ) {
   const client = await getWriteClient(address);
   const hash: string = await client.writeContract({
     address: CONTRACT_ADDRESS,
     functionName,
-    args: [BigInt(reviewId)],
+    args: [reviewId],
     value: 0n,
   });
   await waitAndVerify(client, hash, onProgress);
@@ -281,7 +286,7 @@ export async function callWithReviewId(
 /* -------------------------------------------------------------- polling */
 
 export async function pollReview(
-  reviewId: number,
+  reviewId: string,
   predicate: (r: Review) => boolean,
   opts: { attempts?: number; interval?: number } = {},
 ): Promise<Review> {
@@ -303,5 +308,31 @@ export async function pollReview(
   if (last) return last;
   throw new Error(
     "RPC timeout: the contract did not return this review in time. Try reloading — the transaction may still settle.",
+  );
+}
+
+export async function pollLatestReview(
+  sponsor: string,
+  predicate: (r: Review) => boolean,
+  opts: { attempts?: number; interval?: number } = {},
+): Promise<Review> {
+  const attempts = opts.attempts ?? 60;
+  const interval = opts.interval ?? 4000;
+  let last: Review | null = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const review = await getLatestReview(sponsor);
+      if (review) {
+        last = review;
+        if (predicate(review)) return review;
+      }
+    } catch {
+      /* transient RPC issue, keep polling */
+    }
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  if (last) return last;
+  throw new Error(
+    "RPC timeout: the transaction completed but its review could not be read from accepted contract state.",
   );
 }

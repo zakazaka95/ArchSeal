@@ -1,8 +1,9 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "archseal",
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -51,6 +52,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "destr": "^2.0.5",
     "embla-carousel-react": "^8.6.0",
     "genlayer-js": "^1.1.8",
     "input-otp": "^1.4.2",
@@ -71,7 +73,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
-    "@lovable.dev/vite-tanstack-config": "^2.15.0",
     "@types/node": "^22.16.5",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

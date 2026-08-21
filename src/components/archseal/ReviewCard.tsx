@@ -41,47 +41,47 @@ export function ReviewDetail({
               }
             />
             <Field label="Pull request" value={`#${review.pull_request}`} />
-            <Field label="ADR path" value={review.adr_path || "—"} />
+            <Field label="Policy ADR scope" value={review.adr_path || "—"} />
             <Field
               label="Base commit"
-              value={
-                <CopyValue
-                  value={review.base_sha}
-                  display={shortHash(review.base_sha)}
-                />
-              }
+              value={<CopyValue value={review.base_sha} display={shortHash(review.base_sha)} />}
             />
             <Field
               label="Head commit"
-              value={
-                <CopyValue
-                  value={review.head_sha}
-                  display={shortHash(review.head_sha)}
-                />
-              }
+              value={<CopyValue value={review.head_sha} display={shortHash(review.head_sha)} />}
             />
+            <Field label="Status" value={<StatusChip status={review.status} />} />
             <Field
-              label="Status"
-              value={<StatusChip status={review.status} />}
+              label="Policy hash"
+              value={
+                <CopyValue value={review.policy_hash} display={shortHash(review.policy_hash)} />
+              }
             />
           </div>
 
           {v ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <Field
-                  label="Compliance score"
-                  value={v.score === null ? "—" : String(v.score)}
-                />
+                <Field label="Compliance score" value={v.score === null ? "—" : String(v.score)} />
                 <Field label="Risk level" value={v.risk_level || "—"} />
                 <Field label="Attempts" value={String(review.attempts)} />
+                <Field label="Evidence" value={v.evidence_complete ? "Complete" : "Incomplete"} />
               </div>
               {v.summary ? (
                 <div className="space-y-1.5">
                   <Label>Summary</Label>
-                  <p className="text-sm leading-relaxed text-foreground/90">
-                    {v.summary}
-                  </p>
+                  <p className="text-sm leading-relaxed text-foreground/90">{v.summary}</p>
+                </div>
+              ) : null}
+
+              {v.incomplete_reasons.length > 0 ? (
+                <div className="space-y-2 rounded border border-pending/45 bg-pending/5 p-3">
+                  <Label>Why evidence is incomplete</Label>
+                  <ul className="space-y-1 text-sm text-foreground/90">
+                    {v.incomplete_reasons.map((reason, index) => (
+                      <li key={`${reason}-${index}`}>• {reason}</li>
+                    ))}
+                  </ul>
                 </div>
               ) : null}
 
@@ -109,13 +109,9 @@ export function ReviewDetail({
                       <li key={i} className="space-y-1.5 bg-panel/40 p-3">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] tracking-wide">
                           <span className="text-primary">{f.adr || "ADR"}</span>
-                          <span className="text-muted-foreground">
-                            {f.file || "—"}
-                          </span>
+                          <span className="text-muted-foreground">{f.file || "—"}</span>
                         </div>
-                        <p className="text-sm leading-relaxed text-foreground/90">
-                          {f.finding}
-                        </p>
+                        <p className="text-sm leading-relaxed text-foreground/90">{f.finding}</p>
                       </li>
                     ))}
                   </ul>
@@ -124,27 +120,33 @@ export function ReviewDetail({
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Evidence is pinned on-chain. No consensus verdict has been recorded
-              for this review yet.
+              Evidence is pinned on-chain. No consensus verdict has been recorded for this review
+              yet.
             </p>
           )}
         </div>
 
         <div className="space-y-4 rounded-lg border border-border bg-panel/40 p-4">
-          <Field label="Review ID" value={`#${review.id}`} />
-          <Field label="Reward" value={`${formatGen(review.reward_wei)} GEN`} />
           <Field
-            label="Payout"
-            value={review.payout_scheduled ? "Scheduled" : "Not scheduled"}
+            label="Review ID"
+            value={<CopyValue value={review.id} display={shortHash(review.id)} />}
           />
+          <Field label="Sequence" value={`#${review.sequence}`} />
+          <Field
+            label="Seal hash"
+            value={
+              review.seal_hash ? (
+                <CopyValue value={review.seal_hash} display={shortHash(review.seal_hash)} />
+              ) : (
+                "Pending"
+              )
+            }
+          />
+          <Field label="Reward" value={`${formatGen(review.reward_wei)} GEN`} />
+          <Field label="Payout" value={review.payout_scheduled ? "Scheduled" : "Not scheduled"} />
           <Field
             label="Sponsor"
-            value={
-              <CopyValue
-                value={review.sponsor}
-                display={shortAddress(review.sponsor)}
-              />
-            }
+            value={<CopyValue value={review.sponsor} display={shortAddress(review.sponsor)} />}
           />
           <Field
             label="Contributor"
@@ -160,9 +162,7 @@ export function ReviewDetail({
               <TxLink href={evaluationTxUrl}>Evaluation transaction</TxLink>
             ) : null}
             <div>
-              <TxLink href={addressLink(CONTRACT_ADDRESS)}>
-                Bradbury Explorer — contract
-              </TxLink>
+              <TxLink href={addressLink(CONTRACT_ADDRESS)}>Bradbury Explorer — contract</TxLink>
             </div>
           </div>
           {actions ? <div className="pt-1">{actions}</div> : null}

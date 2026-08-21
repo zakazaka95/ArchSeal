@@ -1,24 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Loader2,
-  Lock,
-  ScanLine,
-  Stamp,
-  Wallet,
-} from "lucide-react";
-import archsealLogo from "@/assets/archseal-logo.png.asset.json";
+import { AlertTriangle, ArrowRight, Loader2, Lock, ScanLine, Stamp, Wallet } from "lucide-react";
 import {
   CONTRACT_ADDRESS,
   addressLink,
   callWithReviewId,
+  getLatestReview,
   getRecentReviews,
   getReview,
   getStats,
   openReview,
+  pollLatestReview,
   pollReview,
-  totalReviewsFrom,
   txLink,
   type Review,
   type Stats,
@@ -41,17 +33,12 @@ import { ReviewDetail } from "./ReviewCard";
 import { cn } from "@/lib/utils";
 
 const PROOF_TX =
-  "https://explorer-bradbury.genlayer.com/transactions/0xd16f9a761e677c6c4a9e4ca28848274c49f87f0d591acda76dc51e63452fa57d";
+  "https://explorer-bradbury.genlayer.com/tx/0xf2fbec02ab9f959399e2428b04d36c42293766e94a3178dcbd4a83e01fe26298";
+const PROOF_REVIEW_ID = "0f5fdf319866412f5aa9745dd7dfc6a1acbdf52d241bc8b354ff84fc3866afc6";
 
 const SEALED = ["COMPLIANT", "VIOLATES_ADR", "INCONCLUSIVE"];
 
-type Phase =
-  | "idle"
-  | "opening"
-  | "pinned"
-  | "evaluating"
-  | "sealed"
-  | "failed";
+type Phase = "idle" | "opening" | "pinned" | "evaluating" | "sealed" | "failed";
 
 export function ArchsealApp() {
   /* ------------------------------------------------------------- wallet */
@@ -105,7 +92,6 @@ export function ArchsealApp() {
 
   /* --------------------------------------------------------------- form */
   const [prUrl, setPrUrl] = useState("");
-  const [adrPath, setAdrPath] = useState("docs/adr");
   const [contributor, setContributor] = useState("");
   const [reward, setReward] = useState("0");
 
@@ -141,9 +127,7 @@ export function ArchsealApp() {
       return false;
     }
     if (!onBradbury) {
-      setError(
-        "Wrong network. Switch your wallet to the GenLayer Bradbury Testnet (chain 4221).",
-      );
+      setError("Wrong network. Switch your wallet to the GenLayer Bradbury Testnet (chain 4221).");
       return false;
     }
     return true;
@@ -161,10 +145,6 @@ export function ArchsealApp() {
       );
       return;
     }
-    if (!adrPath.trim()) {
-      setError("Enter the ADR path inside the repository (e.g. docs/adr).");
-      return;
-    }
     if (!guardWallet()) return;
 
     let valueWei = 0n;
@@ -179,7 +159,7 @@ export function ArchsealApp() {
     setPhase("opening");
     setStatusMsg("Verifying the pull request and architectural records on GitHub.");
     try {
-      const pre = await preflightGithub(parsed, adrPath);
+      const pre = await preflightGithub(parsed);
       if (!pre.ok) {
         setPhase("failed");
         setStatusMsg("");
@@ -189,19 +169,22 @@ export function ArchsealApp() {
         return;
       }
       if (pre.warning) setNotice(pre.warning);
+      if (pre.policy) {
+        setNotice(
+          `Repository policy v${pre.policy.version || "1"} controls ${pre.policy.adrPath}; approved maintainers: ${pre.policy.maintainers.join(", ")}.`,
+        );
+      }
 
       setStatusMsg(
-        "Pinning the repository constitution and exact pull request commits on-chain.",
+        "Pinning the maintainer policy, repository constitution and exact pull request commits on-chain.",
       );
-      const stats = await getStats();
-      const expectedReviewId = totalReviewsFrom(stats) + 1;
+      const previousLatest = await getLatestReview(address).catch(() => null);
 
       const hash = await openReview({
         address,
         repoOwner: parsed.owner,
         repoName: parsed.repo,
         pullRequest: parsed.number,
-        adrPath: adrPath.trim(),
         contributorWallet: (contributor || address).trim(),
         valueWei,
         onProgress: (msg, h) => {
@@ -211,10 +194,17 @@ export function ArchsealApp() {
       });
       setOpenTx(hash);
 
-      setStatusMsg("Reading the pinned evidence back from contract state.");
-      const stored = await pollReview(
-        expectedReviewId,
-        (r) => !!r.base_sha && !!r.head_sha,
+      setStatusMsg("Reading the transaction-derived review from contract state.");
+      const stored = await pollLatestReview(
+        address,
+        (r) =>
+          r.id !== previousLatest?.id &&
+          r.repo_owner.toLowerCase() === parsed.owner.toLowerCase() &&
+          r.repo_name.toLowerCase() === parsed.repo.toLowerCase() &&
+          r.pull_request === parsed.number &&
+          !!r.policy_hash &&
+          !!r.base_sha &&
+          !!r.head_sha,
         { attempts: 60, interval: 4000 },
       );
       setReview(stored);
@@ -241,15 +231,10 @@ export function ArchsealApp() {
       "Independent GenLayer validators are reviewing the pinned code against the accepted architecture. This usually takes a few minutes.",
     );
     try {
-      const hash = await callWithReviewId(
-        "evaluate_review",
-        address,
-        review.id,
-        (msg, h) => {
-          progress(msg);
-          if (h) setEvalTx(h);
-        },
-      );
+      const hash = await callWithReviewId("evaluate_review", address, review.id, (msg, h) => {
+        progress(msg);
+        if (h) setEvalTx(h);
+      });
       setEvalTx(hash);
       setStatusMsg("Reading the consensus verdict from contract state.");
       const settled = await pollReview(
@@ -284,15 +269,10 @@ export function ArchsealApp() {
     setBusy(true);
     setStatusMsg("Requesting a refund of the pinned reward.");
     try {
-      const hash = await callWithReviewId(
-        "refund_review",
-        address,
-        review.id,
-        (msg, h) => {
-          progress(msg);
-          if (h) setRefundTx(h);
-        },
-      );
+      const hash = await callWithReviewId("refund_review", address, review.id, (msg, h) => {
+        progress(msg);
+        if (h) setRefundTx(h);
+      });
       setRefundTx(hash);
       const fresh = await getReview(review.id);
       if (fresh) setReview(fresh);
@@ -320,16 +300,14 @@ export function ArchsealApp() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await getReview(1);
+        const r = await getReview(PROOF_REVIEW_ID);
         if (!cancelled) {
           if (r) setProof(r);
-          else setProofError("Review #1 has not been returned by the contract.");
+          else setProofError("The V2 proof review has not been returned by the contract.");
         }
       } catch {
         if (!cancelled)
-          setProofError(
-            "The Bradbury RPC did not respond. Reload to read the live proof.",
-          );
+          setProofError("The Bradbury RPC did not respond. Reload to read the live proof.");
       }
       try {
         const s = await getStats();
@@ -353,9 +331,7 @@ export function ArchsealApp() {
     if (!stats) return [];
     return Object.entries(stats)
       .filter(
-        ([k, v]) =>
-          !/wei|balance/i.test(k) &&
-          ["string", "number", "boolean"].includes(typeof v),
+        ([k, v]) => !/wei|balance/i.test(k) && ["string", "number", "boolean"].includes(typeof v),
       )
       .slice(0, 3);
   }, [stats]);
@@ -372,12 +348,11 @@ export function ArchsealApp() {
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <div className="flex items-center gap-3">
-            <img
-              src={archsealLogo.url}
-              alt="ARCHSEAL"
-              className="h-7 w-auto sm:h-9"
-            />
-            <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
+            <img src="/favicon.png" alt="" className="h-9 w-9" />
+            <div>
+              <div className="font-mono text-sm tracking-[0.32em] text-foreground">ARCHSEAL</div>
+              <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {address ? (
@@ -417,15 +392,12 @@ export function ArchsealApp() {
               <Label>Consensus-gated software</Label>
               <h1 className="font-display mt-4 text-5xl leading-[0.98] tracking-tight sm:text-6xl">
                 Every codebase has laws.
-                <span className="mt-1 block italic text-primary">
-                  Merge only what obeys them.
-                </span>
+                <span className="mt-1 block italic text-primary">Merge only what obeys them.</span>
               </h1>
               <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-muted-foreground">
-                ARCHSEAL pins a pull request&apos;s exact base and head commits
-                together with your repository&apos;s Architectural Decision
-                Records on the GenLayer Bradbury testnet, then lets independent
-                AI validators reach consensus on whether the change obeys your
+                ARCHSEAL pins a pull request&apos;s exact base and head commits together with your
+                repository&apos;s Architectural Decision Records on the GenLayer Bradbury testnet,
+                then lets independent AI validators reach consensus on whether the change obeys your
                 architecture. Contract state is the only source of truth.
               </p>
 
@@ -482,9 +454,7 @@ export function ArchsealApp() {
                     className="w-full rounded border border-input bg-background/60 px-3 py-2.5 font-mono text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/70"
                   />
                   {prUrl && !parsed ? (
-                    <p className="font-mono text-xs text-violation">
-                      Invalid pull request URL.
-                    </p>
+                    <p className="font-mono text-xs text-violation">Invalid pull request URL.</p>
                   ) : parsed ? (
                     <p className="font-mono text-xs text-muted-foreground">
                       {parsed.owner}/{parsed.repo} · PR #{parsed.number}
@@ -494,13 +464,10 @@ export function ArchsealApp() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
-                    <Label>ADR path</Label>
-                    <input
-                      value={adrPath}
-                      onChange={(e) => setAdrPath(e.target.value)}
-                      spellCheck={false}
-                      className="w-full rounded border border-input bg-background/60 px-3 py-2.5 font-mono text-sm outline-none focus:border-primary/70"
-                    />
+                    <Label>Governance policy</Label>
+                    <div className="rounded border border-input bg-background/40 px-3 py-2.5 font-mono text-sm text-muted-foreground">
+                      .archseal/policy.json
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label>Reward (GEN, optional)</Label>
@@ -549,9 +516,8 @@ export function ArchsealApp() {
                 )}
 
                 <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
-                  Two wallet signatures are required. Signature 1 pins the
-                  commits and ADRs on-chain. Signature 2 runs the AI consensus
-                  review.
+                  The base-branch policy—not user input—selects the ADR scope. Signature 1 pins
+                  policy and commits. Signature 2 runs the AI consensus review.
                 </p>
 
                 {walletError ? (
@@ -568,15 +534,9 @@ export function ArchsealApp() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <Label>Active review</Label>
                   <div className="flex flex-wrap items-center gap-4">
-                    {openTx ? (
-                      <TxLink href={txLink(openTx)}>Lock evidence tx</TxLink>
-                    ) : null}
-                    {evalTx ? (
-                      <TxLink href={txLink(evalTx)}>Consensus tx</TxLink>
-                    ) : null}
-                    {refundTx ? (
-                      <TxLink href={txLink(refundTx)}>Refund tx</TxLink>
-                    ) : null}
+                    {openTx ? <TxLink href={txLink(openTx)}>Lock evidence tx</TxLink> : null}
+                    {evalTx ? <TxLink href={txLink(evalTx)}>Consensus tx</TxLink> : null}
+                    {refundTx ? <TxLink href={txLink(refundTx)}>Refund tx</TxLink> : null}
                   </div>
                 </div>
 
@@ -587,9 +547,7 @@ export function ArchsealApp() {
                   </div>
                 ) : null}
 
-                {notice ? (
-                  <p className="font-mono text-xs text-pending">{notice}</p>
-                ) : null}
+                {notice ? <p className="font-mono text-xs text-pending">{notice}</p> : null}
 
                 {error ? (
                   <div className="flex items-start gap-3 rounded border border-violation/50 bg-violation/5 px-4 py-3">
@@ -673,7 +631,7 @@ export function ArchsealApp() {
                 <div className="flex items-center gap-3 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="font-mono text-sm">
-                    Reading review #1 from the Bradbury contract…
+                    Reading the transaction-derived V2 review from the Bradbury contract…
                   </span>
                 </div>
               )}
@@ -686,13 +644,10 @@ export function ArchsealApp() {
               <Label>Recent reviews</Label>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {recent.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-lg border border-border bg-panel/40 p-4"
-                  >
+                  <div key={r.id} className="rounded-lg border border-border bg-panel/40 p-4">
                     <div className="flex items-center justify-between">
                       <span className="font-mono text-xs text-muted-foreground">
-                        #{r.id}
+                        #{r.sequence || shortHash(r.id)}
                       </span>
                       <StatusChip status={r.status} />
                     </div>
@@ -717,12 +672,9 @@ export function ArchsealApp() {
 
           <footer className="hairline mt-16 flex flex-wrap items-center justify-between gap-3 pt-6">
             <p className="font-mono text-[11px] tracking-wide text-muted-foreground">
-              GenLayer Bradbury Testnet · Chain 4221 · Contract{" "}
-              {shortAddress(CONTRACT_ADDRESS)}
+              GenLayer Bradbury Testnet · Chain 4221 · Contract {shortAddress(CONTRACT_ADDRESS)}
             </p>
-            <TxLink href={addressLink(CONTRACT_ADDRESS)}>
-              Bradbury Explorer
-            </TxLink>
+            <TxLink href={addressLink(CONTRACT_ADDRESS)}>Bradbury Explorer</TxLink>
           </footer>
         </main>
       </div>

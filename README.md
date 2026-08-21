@@ -5,6 +5,7 @@ ArchSeal is a GenLayer dApp that turns a public GitHub pull request into an audi
 It pins the pull request's exact base and head commits, reads repository-approved governance from the pinned base commit, gathers the declared Architectural Decision Records (ADRs) and changed code, and lets independent GenLayer AI validators decide whether the change is `COMPLIANT`, `VIOLATES_ADR`, or `INCONCLUSIVE`.
 
 - Live app: [archseal.xyz](https://archseal.xyz)
+- V2 contract: [`0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d`](https://explorer-bradbury.genlayer.com/address/0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d)
 - Accepted V1 contract: [`0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b`](https://explorer-bradbury.genlayer.com/address/0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
 - Network: GenLayer Bradbury Testnet, chain `4221` (`0x107D`)
 
@@ -101,7 +102,7 @@ pnpm install
 pnpm dev
 ```
 
-Before publishing V2, set `CONTRACT_ADDRESS` in `src/lib/genlayer.ts` to the newly deployed V2 instance and replace the proof review/transaction links with accepted V2 evidence.
+The frontend is configured for the deployed V2 instance and reads its public proof directly from accepted contract state.
 
 ## Verification
 
@@ -116,7 +117,8 @@ The tests cover policy-controlled scope, transaction-context IDs, complete-evide
 
 - [Live dApp](https://archseal.xyz)
 - [GitHub source](https://github.com/zakazaka95/ArchSeal)
-- [Accepted V1 Studio import](https://studio.genlayer.com/?import-contract=0x45f2E002B0980ADD2D82E7146F72cC17CFCc2C2b)
+- [V2 Studio import](https://studio.genlayer.com/?import-contract=0x8c78889F854327F6bFfa9eC4e4Db6fa4DB6F9F6d)
+- [V2 accepted evaluation](https://explorer-bradbury.genlayer.com/tx/0xf2fbec02ab9f959399e2428b04d36c42293766e94a3178dcbd4a83e01fe26298)
 - [Demo video](https://youtu.be/z3wcJ8s4gFY)
 
 ## License

@@ -17,14 +17,19 @@ export function parsePrUrl(input: string): ParsedPr | null {
 }
 
 export type PreflightResult =
-  | { ok: true; warning?: string }
+  | {
+      ok: true;
+      warning?: string;
+      policy?: {
+        adrPath: string;
+        version: string;
+        maintainers: string[];
+      };
+    }
   | { ok: false; error: string };
 
-/** Best-effort public GitHub preflight: repo visibility, PR and ADR path. */
-export async function preflightGithub(
-  p: ParsedPr,
-  adrPath: string,
-): Promise<PreflightResult> {
+/** Best-effort preflight. Contract state remains authoritative. */
+export async function preflightGithub(p: ParsedPr): Promise<PreflightResult> {
   try {
     const prRes = await fetch(
       `https://api.github.com/repos/${p.owner}/${p.repo}/pulls/${p.number}`,
@@ -51,21 +56,68 @@ export async function preflightGithub(
       };
     }
 
-    const path = adrPath.trim().replace(/^\/+|\/+$/g, "");
-    if (!path) {
-      return { ok: false, error: "Enter the ADR path inside the repository." };
+    const pr = await prRes.json();
+    const baseSha = String(pr?.base?.sha ?? "");
+    if (!/^[a-f0-9]{40}$/i.test(baseSha)) {
+      return { ok: false, error: "GitHub did not return a valid PR base commit." };
     }
+
+    const policyRes = await fetch(
+      `https://raw.githubusercontent.com/${p.owner}/${p.repo}/${baseSha}/.archseal/policy.json`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (policyRes.status === 404) {
+      return {
+        ok: false,
+        error:
+          "The PR base commit has no .archseal/policy.json. Add the maintainer policy to the base branch before opening a review.",
+      };
+    }
+    if (!policyRes.ok) {
+      return {
+        ok: true,
+        warning: `Policy pre-check unavailable (HTTP ${policyRes.status}). The contract will verify it on-chain.`,
+      };
+    }
+
+    const policy = await policyRes.json();
+    const expectedRepo = `${p.owner}/${p.repo}`.toLowerCase();
+    const adrPath = String(policy?.adr_path ?? "").replace(/^\/+|\/+$/g, "");
+    const maintainers = Array.isArray(policy?.maintainers)
+      ? policy.maintainers.map(String).filter(Boolean)
+      : [];
+    if (
+      policy?.schema !== "archseal-policy-v1" ||
+      String(policy?.repository ?? "").toLowerCase() !== expectedRepo ||
+      policy?.require_complete_evidence !== true ||
+      !adrPath ||
+      maintainers.length === 0
+    ) {
+      return {
+        ok: false,
+        error:
+          "The repository policy is invalid. Check its schema, repository, ADR path, maintainers and complete-evidence requirement.",
+      };
+    }
+
     const adrRes = await fetch(
-      `https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}`,
+      `https://api.github.com/repos/${p.owner}/${p.repo}/contents/${adrPath}?ref=${baseSha}`,
       { headers: { Accept: "application/vnd.github+json" } },
     );
     if (adrRes.status === 404) {
       return {
         ok: false,
-        error: `No architectural decision records found at "${path}" in ${p.owner}/${p.repo}.`,
+        error: `The policy ADR path "${adrPath}" does not exist at the pinned base commit.`,
       };
     }
-    return { ok: true };
+    return {
+      ok: true,
+      policy: {
+        adrPath,
+        version: String(policy?.policy_version ?? ""),
+        maintainers,
+      },
+    };
   } catch {
     return {
       ok: true,
