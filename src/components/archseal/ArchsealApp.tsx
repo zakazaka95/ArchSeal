@@ -31,6 +31,7 @@ import { parsePrUrl, preflightGithub } from "@/lib/github";
 import { CopyValue, Label, Panel, StatusChip, TxLink } from "./primitives";
 import { ReviewDetail } from "./ReviewCard";
 import { cn } from "@/lib/utils";
+import archsealLogoAsset from "@/assets/archseal-logo.png.asset.json";
 
 const PROOF_TX =
   "https://explorer-bradbury.genlayer.com/tx/0xf2fbec02ab9f959399e2428b04d36c42293766e94a3178dcbd4a83e01fe26298";
@@ -348,11 +349,12 @@ export function ArchsealApp() {
         {/* Header */}
         <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <div className="flex items-center gap-3">
-            <img src="/favicon.png" alt="" className="h-9 w-9" />
-            <div>
-              <div className="font-mono text-sm tracking-[0.32em] text-foreground">ARCHSEAL</div>
-              <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
-            </div>
+            <img
+              src={archsealLogoAsset.url}
+              alt="ARCHSEAL"
+              className="h-7 w-auto sm:h-9"
+            />
+            <div className="label-xs hidden sm:block">GenLayer Bradbury</div>
           </div>
           <div className="flex items-center gap-3">
             {address ? (
